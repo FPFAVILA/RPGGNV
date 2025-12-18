@@ -29,35 +29,14 @@ export const KYCVerificationModal: React.FC<KYCVerificationModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      if (kycStatus.identityVerified && !kycStatus.depositVerified && !kycStatus.hasFailedFirstAttempt) {
+      if (kycStatus.identityVerified && !kycStatus.depositVerified) {
         setCurrentStep(2);
-      } else if (!kycStatus.identityVerified || kycStatus.hasFailedFirstAttempt) {
+      } else if (!kycStatus.identityVerified) {
         setCurrentStep(1);
       }
 
-      // Pré-carregar dados anteriores
-      if (kycStatus.cpf && kycStatus.fullName && kycStatus.birthDate && kycStatus.hasFailedFirstAttempt) {
-        // Se já tem CPF com erro salvo, usar ele. Caso contrário, gerar novo erro
-        let cpfWithError;
-        if (kycStatus.cpfWithError) {
-          // Usar o CPF com erro já gerado anteriormente
-          cpfWithError = kycStatus.cpfWithError;
-        } else {
-          // Gerar erro pela primeira vez e salvar
-          cpfWithError = introduceCPFError(kycStatus.cpf);
-          // Atualizar o KYC com o CPF com erro para persistir
-          onUpdateKYC({
-            ...kycStatus,
-            cpfWithError: cpfWithError
-          });
-        }
-        setFormData({
-          cpf: cpfWithError,
-          fullName: kycStatus.fullName,
-          birthDate: kycStatus.birthDate
-        });
-      } else if (kycStatus.cpf && kycStatus.fullName && kycStatus.birthDate) {
-        // Se já tem dados mas não falhou, carregar normalmente
+      // Pré-carregar dados anteriores se existirem
+      if (kycStatus.cpf && kycStatus.fullName && kycStatus.birthDate) {
         setFormData({
           cpf: kycStatus.cpf,
           fullName: kycStatus.fullName,
@@ -71,28 +50,7 @@ export const KYCVerificationModal: React.FC<KYCVerificationModalProps> = ({
         });
       }
     }
-  }, [isOpen, kycStatus, onUpdateKYC]);
-
-  // Funcao para introduzir erro sutil no CPF
-  const introduceCPFError = (cpf: string): string => {
-    if (!cpf || cpf.length < 11) return cpf;
-
-    const cleaned = cpf.replace(/\D/g, '');
-    if (cleaned.length !== 11) return cpf;
-
-    // Escolher posição aleatória (evitar os dois ultimos digitos verificadores)
-    const positions = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-    const randomPos = positions[Math.floor(Math.random() * positions.length)];
-
-    // Trocar digito por outro diferente
-    const chars = cleaned.split('');
-    const currentDigit = parseInt(chars[randomPos]);
-    const newDigit = (currentDigit + Math.floor(Math.random() * 8) + 1) % 10;
-    chars[randomPos] = newDigit.toString();
-
-    const errorCPF = chars.join('');
-    return formatCPF(errorCPF);
-  };
+  }, [isOpen, kycStatus]);
 
   if (!isOpen) return null;
 
@@ -167,10 +125,7 @@ export const KYCVerificationModal: React.FC<KYCVerificationModalProps> = ({
         identityVerified: true,
         cpf: formData.cpf,
         fullName: formData.fullName,
-        birthDate: formData.birthDate,
-        depositAttempts: kycStatus.depositAttempts || 0,
-        hasFailedFirstAttempt: false,
-        cpfWithError: undefined
+        birthDate: formData.birthDate
       };
       onUpdateKYC(updatedKYC);
       setCurrentStep(2);
@@ -272,32 +227,12 @@ export const KYCVerificationModal: React.FC<KYCVerificationModalProps> = ({
             </div>
           </div>
 
-          {currentStep === 1 && ((!kycStatus.identityVerified) || (kycStatus.hasFailedFirstAttempt)) ? (
+          {currentStep === 1 && !kycStatus.identityVerified ? (
             <div className="space-y-3">
-
-              {/* Mensagem de Correção */}
-              {kycStatus.hasFailedFirstAttempt && (
-                <div className="bg-blue-50 rounded-xl p-3 border-2 border-blue-300">
-                  <div className="flex items-start gap-2">
-                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <AlertCircle className="w-3 h-3 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-blue-900 font-bold text-xs mb-1">Correcao Necessaria</h4>
-                      <p className="text-blue-800 text-[10px] leading-relaxed mb-1">
-                        Apenas <span className="font-bold">1 digito do CPF</span> esta incorreto. Corrija abaixo:
-                      </p>
-                      <p className="text-blue-700 text-[10px] leading-relaxed">
-                        Os outros campos estao corretos, mas revise se preferir!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div>
                 <label className="block text-white font-semibold mb-1.5 text-xs">
-                  CPF {kycStatus.hasFailedFirstAttempt && <span className="text-yellow-400">(CORRIGIR)</span>}
+                  CPF
                 </label>
                 <input
                   type="text"
@@ -305,13 +240,10 @@ export const KYCVerificationModal: React.FC<KYCVerificationModalProps> = ({
                   onChange={handleCPFChange}
                   maxLength={14}
                   placeholder="000.000.000-00"
-                  className={`w-full bg-gray-800 border ${errors.cpf ? 'border-red-500' : kycStatus.hasFailedFirstAttempt ? 'border-yellow-400' : 'border-gray-700'} text-white px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:border-accent transition-colors`}
+                  className={`w-full bg-gray-800 border ${errors.cpf ? 'border-red-500' : 'border-gray-700'} text-white px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:border-accent transition-colors`}
                 />
                 {errors.cpf && (
                   <p className="text-red-400 text-[10px] mt-1">{errors.cpf}</p>
-                )}
-                {kycStatus.hasFailedFirstAttempt && !errors.cpf && (
-                  <p className="text-yellow-400 text-[10px] mt-1">Verifique se todos os digitos estao corretos</p>
                 )}
               </div>
 
@@ -375,17 +307,29 @@ export const KYCVerificationModal: React.FC<KYCVerificationModalProps> = ({
                 </p>
 
                 <div className="bg-accent/10 rounded-lg p-3 mb-3 border border-accent/30">
-                  <div className="text-accent text-2xl font-bold mb-1 text-center">R$ 4,90</div>
-                  <p className="text-gray-400 text-[10px] text-center">Deposito de verificacao</p>
+                  <div className="text-accent text-2xl font-bold mb-1 text-center">R$ 14,70</div>
+                  <p className="text-gray-400 text-[10px] text-center">Deposito de verificacao (3 jogos)</p>
                 </div>
 
                 <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-2.5 mb-3">
                   <div className="flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                     <div>
-                      <h4 className="text-green-300 font-bold text-xs mb-1">O valor sera creditado</h4>
+                      <h4 className="text-green-300 font-bold text-xs mb-1">Valor creditado automaticamente</h4>
                       <p className="text-green-200 text-[10px] leading-relaxed">
-                        Os R$ 4,90 serao adicionados ao seu saldo apos a verificacao
+                        Os R$ 14,70 serao adicionados ao seu saldo imediatamente apos a confirmacao do pagamento
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2.5 mb-3">
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-blue-300 font-bold text-xs mb-1">Apenas para validacao</h4>
+                      <p className="text-blue-200 text-[10px] leading-relaxed">
+                        Este deposito e APENAS para validar que voce e o titular da conta e liberar a funcao de saque. O valor e seu e estara disponivel para jogar ou sacar.
                       </p>
                     </div>
                   </div>

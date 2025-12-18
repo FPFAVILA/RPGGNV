@@ -19,9 +19,6 @@ export interface KYCStatus {
   cpf?: string;
   fullName?: string;
   birthDate?: string;
-  depositAttempts: number;
-  hasFailedFirstAttempt?: boolean;
-  cpfWithError?: string;
 }
 
 export interface ScratchCard {
